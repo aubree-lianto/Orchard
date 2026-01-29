@@ -1,0 +1,7 @@
+# Core dependencies (always needed)
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+
+# vLLM (only install on Linux with GPU)
+# vllm>=0.4.0
