@@ -17,6 +17,7 @@ Health and Status Endpoints
 
 Endpoints let you verify if server is running or not
 """
+# So does Orchard just fetch from these two endpoints..? and it says ok yay it works!
 @app.get("/")
 def root():
     return {"status": "running", "message": "Mock LLM server is up!"}
@@ -32,6 +33,7 @@ def health():
 class ChatRequest(BaseModel):
     model: str
     messages: list
+
 
 @app.post("/v1/chat/completions")
 def chat(req: ChatRequest):
