@@ -16,7 +16,7 @@ class ModelClient(ABC):
     # Decorator here says -> any child class that inherits MUST write their own version of this specific function
     # Chat function
     # request:ModelRequest -> tells us request must be of type ModelRequest (Pydantic Model)
-    # The arrow (->) says function will return a ModelResponse type (Pydantic Model define in LLM_schemas)
+    # The arrow (->) says function will return a ModelResponse type (Pydantic Model defined in LLM_schemas)
     @abstractmethod
     def chat(self, request:ModelRequest) -> ModelResponse:
         # If a child class calls this without its own code
