@@ -71,14 +71,55 @@ class MockModelClient(ModelClient):
         usage = data.get("usage", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
         tool_calls = data.get("tool_calls") or None
 
+        # Return the parsed model response
         return ModelResponse(model=request.model, output_text=content, tool_calls=tool_calls, usage=usage)
 
     
 # Inherits modelClient class -> modelClient for the real vLLM
 class VLLMModelClient(ModelClient):
-    # Dont know what it's going to be taking in as a parameter
-    def __init__(self):
+
+    def __init__(self, base_url: Optional[str] = None, default_model:str = None, timeout: int = 10, headers: dict = None, streaming: bool = False):
+        self.base_url = base_url or os.getenv("VLLM_SERVER_URL", "http://localhost:8080")
+        # Timeout define to prevent application from freezing
+        self.timeout = timeout
+        # Fallback model name is request.model is empty
+        self.default_model = default_model
+        # For api keys
+        self.headers = headers or {}
+        # Whether to support streaming responses
+        self.streaming = streaming
 
     # Define the base chat functions
-    def chat(self, request:ModelRequest) -> ModelResponse:
-        return ModelResponse(model=request.model, output_text="mocked",tool_calls=None, usage={"total_tokens":0})
+    def chat(self, request: ModelRequest) -> ModelResponse:
+        # choose model (request overrides client default)
+        model = request.model or self.default_model
+        if not model:
+            raise ValueError("no model specified in request or client.default_model")
+
+        # simple sync client doesn't support streaming
+        if self.streaming:
+            raise NotImplementedError("streaming not supported by this VLLMModelClient stub")
+
+        url = f"{self.base_url.rstrip('/')}/v1/chat/completions"
+        payload = {
+            "model": model,
+            "messages": [m.dict() for m in request.messages],
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+            "tools": request.tools,
+        }
+
+        resp = requests.post(url, json=payload, headers=self.headers, timeout=self.timeout)
+        resp.raise_for_status()
+        data = resp.json()
+
+        choices = data.get("choices", [])
+        content = ""
+        if choices:
+            msg = choices[0].get("message", {})
+            content = msg.get("content", "")
+
+        usage = data.get("usage", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+        tool_calls = data.get("tool_calls") or None
+
+        return ModelResponse(model=model, output_text=content, tool_calls=tool_calls, usage=usage)
