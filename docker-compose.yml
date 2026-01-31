@@ -1,0 +1,45 @@
+# Docker Compose file meant to define my two services
+# MockServer (via FastAPI) and Orchestrator
+
+version: '3.8'
+
+services:
+  # 1. YOUR MOCK SERVER (The "Fake" LLM)
+  mock-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile.server  # Assumes you have a Dockerfile for the server
+    container_name: mock_llm_server
+    ports:
+      - "8000:8000"  # Exposes localhost:8000 on your PC to port 8000 in the container
+    environment:
+      - PORT=8000
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  # 2. YOUR ORCHESTRATOR (The App using ModelClient)
+  orchestrator:
+    build: 
+      context: .
+      dockerfile: Dockerfile.client  # Assumes you have a separate Dockerfile for your app
+    depends_on:
+      - mock-server  # Waits for the server to start before starting the app
+    environment:
+      # CRITICAL: Inside Docker, "localhost" is the container itself. 
+      # We must point to the service name "mock-server" instead.
+      - MOCK_MODEL_SERVER_URL=http://mock-server:8000
+    volumes:
+      - ./:/app  # Syncs your code so you don't have to rebuild on every change
+    command: python my_orchestrator.py
+
+  # 3. FUTURE REAL PROVIDER (vLLM - Commented out for now)
+  # vllm:
+  #   image: vllm/vllm-openai:latest
+  #   ports:
+  #     - "8000:8000"
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
