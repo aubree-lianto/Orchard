@@ -6,16 +6,25 @@ version: '3.8'
 services:
   # 1. YOUR MOCK SERVER (The "Fake" LLM)
   mock-server:
+    # Build an image from a Dockerfile
     build: 
+      # Look in current folder
       context: .
+      # User this dockerfile
       dockerfile: Dockerfile.server
     container_name: mock_llm_server
+    # Maps port 8000 (host pc) -> to 8000 (container)
     ports:
       - "8000:8000"
+    # Inside container, env var PORT=8000
     environment:
       - PORT=8000
     # FIXED: point to your actual mock_server module
-    command: ["uvicorn", "inference.mock_server:app", "--host", "0.0.0.0", "--port", "8000"]
+    # Starts the FastAPI mock server on port 8000 in the container
+    command: [
+      "uvicorn", "inference.mock_server:app",
+      "--host", "0.0.0.0", # Listen on all IPs inside container
+       "--port", "8000"] # Listen on port 8000
 
   # 2. YOUR ORCHESTRATOR (The App using ModelClient)
   orchestrator:
@@ -23,12 +32,14 @@ services:
       context: .
       dockerfile: Dockerfile.client
     container_name: orchard_orchestrator
-    depends_on:
+    depends_on: # Has dependency on mock-server -> will not start orchestrator until mock-server has started running
       - mock-server
     environment:
+      # Uses service name instead of local host
       - MOCK_MODEL_SERVER_URL=http://mock-server:8000
       - MODEL_PROVIDER=mock
     volumes:
+      # Mounts repo into /app so code changes sync instantly
       - ./:/app
     working_dir: /app
     command: ["python", "-u", "scripts/run_mock_client.py"]
@@ -41,6 +52,7 @@ services:
   #   - GPU with >= 24GB VRAM (A10, A40, RTX 4090, A100)
   #   - HuggingFace token with Llama 3 access
   vllm:
+    # Here is where we use the vllm-openai image for docker
     image: vllm/vllm-openai:latest
     container_name: vllm_server
     ports:
