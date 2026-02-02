@@ -8,38 +8,62 @@ services:
   mock-server:
     build: 
       context: .
-      dockerfile: Dockerfile.server  # Assumes you have a Dockerfile for the server
+      dockerfile: Dockerfile.server
     container_name: mock_llm_server
     ports:
-      - "8000:8000"  # Exposes localhost:8000 on your PC to port 8000 in the container
+      - "8000:8000"
     environment:
       - PORT=8000
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    # FIXED: point to your actual mock_server module
+    command: ["uvicorn", "inference.mock_server:app", "--host", "0.0.0.0", "--port", "8000"]
 
   # 2. YOUR ORCHESTRATOR (The App using ModelClient)
   orchestrator:
     build: 
       context: .
-      dockerfile: Dockerfile.client  # Assumes you have a separate Dockerfile for your app
+      dockerfile: Dockerfile.client
+    container_name: orchard_orchestrator
     depends_on:
-      - mock-server  # Waits for the server to start before starting the app
+      - mock-server
     environment:
-      # CRITICAL: Inside Docker, "localhost" is the container itself. 
-      # We must point to the service name "mock-server" instead.
       - MOCK_MODEL_SERVER_URL=http://mock-server:8000
+      - MODEL_PROVIDER=mock
     volumes:
-      - ./:/app  # Syncs your code so you don't have to rebuild on every change
-    command: python my_orchestrator.py
+      - ./:/app
+    working_dir: /app
+    command: ["python", "-u", "scripts/run_mock_client.py"]
 
-  # 3. FUTURE REAL PROVIDER (vLLM - Commented out for now)
-  # vllm:
-  #   image: vllm/vllm-openai:latest
-  #   ports:
-  #     - "8000:8000"
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [gpu]
+  # 3. vLLM (GPU-BACKED REAL LLM)
+  # Requirements:
+  #   - Linux host with NVIDIA GPU
+  #   - NVIDIA drivers installed
+  #   - NVIDIA Container Toolkit (nvidia-docker2)
+  #   - GPU with >= 24GB VRAM (A10, A40, RTX 4090, A100)
+  #   - HuggingFace token with Llama 3 access
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm_server
+    ports:
+      - "8001:8000"  # exposed on 8001 so it doesn't clash with mock-server
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface  # cache models locally
+    command: [
+      "--model", "meta-llama/Meta-Llama-3-8B-Instruct",
+      "--host", "0.0.0.0",
+      "--port", "8000",
+      "--dtype", "auto",
+      "--max-model-len", "8192"
+    ]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # Recommended: increase shared memory for large models
+    shm_size: '1g'
+    profiles:
+      - gpu  # only starts when you explicitly request it
