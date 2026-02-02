@@ -95,7 +95,7 @@ Inference is deployed as a separate service to allow independent scaling and upd
 - Horizontal Pod Autoscaling for API services
 - NVIDIA device plugin for GPU scheduling (when available)
 
-### ### Training and Model Lifecycle
+### Training and Model Lifecycle
 
 - LoRA fine-tuning jobs are executed on a Slurm-based compute cluster
 - Trained adapters are versioned and stored separately from base models
@@ -105,6 +105,7 @@ This separation mirrors real-world ML infrastructure, where training and serving
 
 ## Repository Structure
 
+```
 orchard/
 ├── api/              # FastAPI service and LangGraph agents
 ├── inference/        # GPU-backed LLM inference service
@@ -113,7 +114,7 @@ orchard/
 ├── observability/    # Metrics and monitoring configuration
 ├── ci/               # CI/CD pipelines
 └── docs/             # Architecture and design documentation
-
+```
 ---
 
 ## Scalability Design
