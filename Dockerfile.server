@@ -1,0 +1,33 @@
+# Mock LLM Server Container
+# Purpose: Lightweight FastAPI container for local development
+# Used by: docker-compose.yml (mock-server service)
+# Essentially just a recipe for building the image
+
+# Define base for image
+FROM python:3.11-slim
+
+# Sets working directory for any command as /app within our container
+WORKDIR /app
+
+# Copy <src> <dest>
+COPY inference/requirements.txt ./inference/requirements.txt
+
+# Installs required dependencies inside the container without caching the downloaded packages -> saves space in image
+RUN python -m pip install --no-cache-dir -r inference/requirements.txt
+
+# Copies server code and schemas into the container
+COPY inference/mock_server.py ./inference/mock_server.py
+COPY schemas ./schemas
+
+# Expose port 8000
+EXPOSE 8000
+
+# Health check -> tells docker how to check if container is healthy
+# USed by docker-compose.yml 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:8000/health')"
+
+# Default command when container starts (but is overridden by docker-compose.yml command)
+CMD ["uvicorn", "inference.mock_server:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
