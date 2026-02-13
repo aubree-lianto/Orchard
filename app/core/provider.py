@@ -1,10 +1,10 @@
-import os
+from app.core.settings import settings
 from inference.model_client import MockModelClient, VLLMModelClient
 
 def get_model_client():
 
     # Fetch provider from env, otherwise default to mock
-    provider = os.getenv("MODEL_PROVIDER", "mock").lower()
+    provider = settings.MODEL_PROVIDER.lower()
 
     if provider == "mock":
         return MockModelClient()

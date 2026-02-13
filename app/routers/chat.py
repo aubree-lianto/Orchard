@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from inference.model_client import MockModelClient
+from app.core.provider import get_model_client
 from schemas.llm_schemas import ModelRequest, ModelResponse
 
 router = APIRouter(prefix="/chat")
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/chat")
 async def chat(request: ModelRequest) -> ModelResponse:
     try:
         # Initialize client (abstraction handles mock vs vLLM)
-        client = MockModelClient()
+        client = get_model_client()
         
         # Forward request to backend
         response = client.chat(request)
