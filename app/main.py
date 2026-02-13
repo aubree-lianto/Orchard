@@ -1,7 +1,9 @@
 from fastapi import FastAPI
+from app.routers import chat
 
 app = FastAPI(title="Orchard API", description="LLM orchestration gateway")
 
+app.include_router(chat.router)
 
 @app.get("/")
 def root():
