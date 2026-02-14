@@ -2,6 +2,7 @@
 fastapi>=0.104.0
 uvicorn>=0.24.0
 pydantic>=2.0.0
+pydantic-settings>=2.0.0
 
 # LLM Orchestration (Agent logic)
 langchain>=0.1.0

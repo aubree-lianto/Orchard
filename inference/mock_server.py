@@ -5,11 +5,18 @@ Because my laptop is absolute BOOTY CHEEKS and cannot run vllm, this file provid
 Use for local development on Windows :skull:
 """
 from fastapi import FastAPI
-from pydantic import BaseModel 
+from pydantic import BaseModel
+import logging
+import uvicorn
 
+# Added proper logging and error handling
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 """ App Initialization """
 app = FastAPI()
+
+logger.info("Mock LLM Server initializing...")
 
 
 """
@@ -37,14 +44,31 @@ class ChatRequest(BaseModel):
 
 @app.post("/v1/chat/completions")
 def chat(req: ChatRequest):
-    return {
-        "id": "mock",
-        "object": "chat.completion",
-        "choices": [{
-            "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": "Mock response for dev"
+    try:
+        logger.debug(f"Received chat request: {req}")
+        response = {
+            "id": "mock",
+            "object": "chat.completion",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Mock response for dev"
+                }
+            }],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15
             }
-        }]
-    }
+        }
+        logger.debug(f"Returning response: {response}")
+        return response
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}", exc_info=True)
+        return {"error": str(e), "status": "error"}
+
+
+if __name__ == "__main__":
+    logger.info("Starting mock server on http://localhost:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

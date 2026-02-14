@@ -1,0 +1,9 @@
+{
+  "model": "gpt-mock",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello"
+    }
+  ]
+}
