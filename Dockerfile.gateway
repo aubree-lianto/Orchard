@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy requirements
+COPY inference/requirements.txt ./inference/requirements.txt
+
+# Install dependencies without caching
+RUN python -m pip install --no-cache-dir -r inference/requirements.txt
+
+# Copy application code
+COPY app ./app
+COPY schemas ./schemas
+COPY inference ./inference
+
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+# Health check - verify API is responsive
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+
+# Start FastAPI gateway
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

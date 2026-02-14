@@ -26,6 +26,24 @@ services:
       "--host", "0.0.0.0", # Listen on all IPs inside container
        "--port", "8000"] # Listen on port 8000
 
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: orchard_gateway
+    depends_on:
+      - mock-server
+    ports:
+      - "8001:8000"  # Host 8001 → Container 8000
+    environment:
+      - MOCK_MODEL_SERVER_URL=http://mock-server:8000
+      - MODEL_PROVIDER=mock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # 2. YOUR ORCHESTRATOR (The App using ModelClient)
   orchestrator:
     build: 
