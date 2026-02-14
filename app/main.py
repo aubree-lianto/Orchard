@@ -1,8 +1,24 @@
 from fastapi import FastAPI
 from app.routers import chat
 from app.core.errors import register_error_handlers
+from app.core.middleware import LoggingMiddleware
+import logging
+
+# Configure root logger for uvicorn
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Ensure app.middleware logger is configured
+middleware_logger = logging.getLogger("app.middleware")
+middleware_logger.setLevel(logging.INFO)
+middleware_logger.propagate = True
 
 app = FastAPI(title="Orchard API", description="LLM orchestration gateway")
+
+# Register middleware BEFORE error handlers
+app.add_middleware(LoggingMiddleware)
 
 register_error_handlers(app)
 

@@ -8,6 +8,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("")
 # Accept request from client via Pydantic model
 # Forward to ModelClient via backend
+# Initially accidentally defined as an async function
 def chat(request: ModelRequest) -> ModelResponse:
     try:
         # Initialize client (abstraction handles mock vs vLLM)
