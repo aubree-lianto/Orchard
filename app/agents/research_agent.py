@@ -1,0 +1,138 @@
+from langgraph.graph import StateGraph, END
+from typing import Union
+from app.core.agent_state import AgentState
+from app.core.provider import get_model_client
+import logging
+
+logger = logging.getLogger(__name__)
+
+def node_llm_call(state: AgentState) -> AgentState:
+
+
+    logger.info(f"[LLM Call] Iteration {state.iteration}, Messages: {len(state.messages)}")
+
+    client = get_model_client()
+
+    from schemas.llm_schemas import ModelRequest, Message
+
+    request = ModelRequest(
+        model = "gpt-mock",
+        messages = [
+            Message(role=msg["role"], content = msg["content"])
+            for msg in state.messages
+        ]
+    )
+
+    response = client.chat(request)
+
+    state.messages.append({
+        "role": "assistant",
+        "content": response.output_text
+    })
+
+    state.tool_calls = response.tool_calls
+    state.iteration += 1
+
+    state.intermediate_steps.append({
+        "action": "llm_response",
+        "detail": {
+            "tokens_used": response.usage.get("total_tokens", 0),
+            "has_tool_calls": bool(response.tool_calls)
+        }
+    })
+
+    logger.info(f"[LLM Call] Response: {response.output_text[:50]}...")
+    return state
+
+def node_tool_executor(state: AgentState) -> AgentState:
+    """
+    Node 2: Execute tool calls if any.
+    
+    Input: AgentState with potential tool_calls
+    Output: AgentState with tool results added to messages
+    """
+    if not state.tool_calls:
+        logger.info("No tool calls to execute")
+        return state
+    
+    logger.info(f"[Tool Executor] Executing {len(state.tool_calls)} tool calls")
+    
+    for tool_call in state.tool_calls:
+        tool_name = tool_call.get("tool_name")
+        args = tool_call.get("arguments", {})
+        
+        # Placeholder: Real implementation would call actual tools
+        logger.info(f"[Tool Executor] Calling {tool_name} with {args}")
+        
+        tool_result = f"Mock result for {tool_name}"
+        
+        # Add observation to messages
+        state.messages.append({
+            "role": "user",  # Tool responses come as observations
+            "content": f"Tool {tool_name} returned: {tool_result}"
+        })
+
+        state.intermediate_steps.append({
+            "action": "tool_call",
+            "detail": {
+                "tool": tool_name,
+                "args": args,
+                "result": tool_result
+            }
+        })
+    
+    return state
+
+def router_decision(state: AgentState) -> str:
+    """
+    Decide whether to continue loop or end.
+    
+    Input: AgentState after LLM call
+    Output: "continue" (execute tools) or "end" (return response)
+    """
+    has_tool_calls = bool(state.tool_calls)
+    max_iterations = 5
+    
+    if state.iteration >= max_iterations:
+        logger.info(f"Max iterations ({max_iterations}) reached")
+        return "end"
+    
+    if has_tool_calls:
+        logger.info("Tool calls detected, continuing loop")
+        return "continue"
+    
+    logger.info("No tool calls, ending loop")
+    return "end"
+
+def build_research_graph() -> StateGraph:
+    """
+    Build the LangGraph state graph.
+    
+    Returns a compiled graph where all nodes operate on AgentState.
+    """
+    graph = StateGraph(AgentState)
+    
+    # Add nodes
+    graph.add_node("llm_call", node_llm_call)
+    graph.add_node("tool_executor", node_tool_executor)
+    
+    # Define flow
+    graph.set_entry_point("llm_call")
+    
+    graph.add_conditional_edges(
+        "llm_call",
+        router_decision,
+        {
+            "continue": "tool_executor",
+            "end": END
+        }
+    )
+    
+    graph.add_edge("tool_executor", "llm_call")
+    
+    logger.info("Research graph built successfully")
+    return graph.compile()
+
+
+# Compile graph on module load
+RESEARCH_GRAPH = build_research_graph()
