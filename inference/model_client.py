@@ -30,7 +30,7 @@ class MockModelClient(ModelClient):
     # base_url argument -> Just tells us which server the mock client is on -> defaults to port:8000
     # Will need to implement .env file later
     def __init__(self, base_url: Optional[str] = None, timeout: int = 10):
-        self.base_url = base_url or os.getenv("MOCK_MODEL_SERVER_URL", "http://localhost:8001")
+        self.base_url = base_url or os.getenv("MOCK_MODEL_SERVER_URL", "http://localhost:8000")
         # Timeout define to prevent application from freezing
         self.timeout = timeout
         # Just keeps session open

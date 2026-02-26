@@ -24,7 +24,7 @@ Health and Status Endpoints
 
 Endpoints let you verify if server is running or not
 """
-# So does Orchard just fetch from these two endpoints..? and it says ok yay it works!
+
 @app.get("/")
 def root():
     return {"status": "running", "message": "Mock LLM server is up!"}
@@ -71,4 +71,4 @@ def chat(req: ChatRequest):
 
 if __name__ == "__main__":
     logger.info("Starting mock server on http://localhost:8001")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

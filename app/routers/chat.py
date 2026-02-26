@@ -5,7 +5,7 @@ from app.core.provider import get_model_client
 from app.core.errors import APIError
 from schemas.llm_schemas import ModelRequest, ModelResponse
 from app.core.agent_state import AgentState
-from agents.research_agent import RESEARCH_GRAPH
+from app.agents.research_agent import RESEARCH_GRAPH
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 

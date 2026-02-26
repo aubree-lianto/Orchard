@@ -6,9 +6,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Set up basic graph nodes
+
+# Calls the LLM via ModelClient
 def node_llm_call(state: AgentState) -> AgentState:
-
-
+    
     logger.info(f"[LLM Call] Iteration {state.iteration}, Messages: {len(state.messages)}")
 
     client = get_model_client()
@@ -44,6 +46,8 @@ def node_llm_call(state: AgentState) -> AgentState:
     logger.info(f"[LLM Call] Response: {response.output_text[:50]}...")
     return state
 
+
+# Placeholder for future execution
 def node_tool_executor(state: AgentState) -> AgentState:
     """
     Node 2: Execute tool calls if any.
