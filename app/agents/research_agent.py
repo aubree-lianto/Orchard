@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 from typing import Union
 from app.core.agent_state import AgentState
 from app.core.provider import get_model_client
+from app.agents.tools import TOOLS, get_tool_by_name
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,12 @@ def node_llm_call(state: AgentState) -> AgentState:
     client = get_model_client()
 
     from schemas.llm_schemas import ModelRequest, Message
+
+    # Include tool definitions in system prompt
+    tools_schema = "\n".join([
+        f"- {tool.name}: {tool.description}"
+        for tool in TOOLS
+    ])
 
     request = ModelRequest(
         model = "gpt-mock",
@@ -65,10 +72,20 @@ def node_tool_executor(state: AgentState) -> AgentState:
         tool_name = tool_call.get("tool_name")
         args = tool_call.get("arguments", {})
         
-        # Placeholder: Real implementation would call actual tools
-        logger.info(f"[Tool Executor] Calling {tool_name} with {args}")
-        
-        tool_result = f"Mock result for {tool_name}"
+        tool = get_tool_by_name(tool_name)
+
+        if not tool:
+            logger.warning(f"[Tool Executor] Unknown tool: {tool_name}")
+            tool_result = f"Error: Unknown tool '{tool_name}'"
+        else: 
+            try:
+                logger.info(f"[Tool Executor] Calling {tool_name} with {args}")
+                # Call the tool with unpacked arguments
+                tool_result = tool.invoke(args)
+                logger.info(f"[Tool Executor] {tool_name} returned: {tool_result}")
+            except Exception as e:
+                tool_result = f"Error executing {tool_name}: {str(e)}"
+                logger.error(tool_result)
         
         # Add observation to messages
         state.messages.append({

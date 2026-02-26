@@ -22,4 +22,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import sys; sys.exit(0)" || exit 1
 
-CMD ["python", "-u", "scripts/run_mock_client.py"]
+CMD ["sleep", "infinity"]

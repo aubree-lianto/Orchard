@@ -25,7 +25,6 @@ services:
       "uvicorn", "inference.mock_server:app",
       "--host", "0.0.0.0", # Listen on all IPs inside container
        "--port", "8000"] # Listen on port 8000
-
   gateway:
     build:
       context: .
@@ -48,7 +47,7 @@ services:
   orchestrator:
     build: 
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: Dockerfile.orchestrator
     container_name: orchard_orchestrator
     depends_on: # Has dependency on mock-server -> will not start orchestrator until mock-server has started running
       - mock-server
@@ -60,7 +59,7 @@ services:
       # Mounts repo into /app so code changes sync instantly
       - ./:/app
     working_dir: /app
-    command: ["python", "-u", "scripts/run_mock_client.py"]
+    command: sleep infinity
 
   # 3. vLLM (GPU-BACKED REAL LLM)
   # Requirements:
