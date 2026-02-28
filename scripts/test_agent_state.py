@@ -53,6 +53,41 @@ def test_agent_state():
     print(f"   - Final response: {final_state.messages[-1]['content'][:50]}...")
     
     print("\n" + "=" * 60)
+    print("TEST 3: Tool Invocation Path")
+    print("=" * 60)
+
+    initial_state = AgentState(
+        messages=[
+            {"role": "user", "content": "Please calculate 2 + 2 for me"}
+        ]
+    )
+
+    final_state_dict = RESEARCH_GRAPH.invoke(initial_state)
+    final_state = AgentState(**final_state_dict)
+
+    # Graph should have looped: llm_call → tool_executor → llm_call
+    assert final_state.iteration >= 2, (
+        f"Expected >= 2 iterations (llm -> tool -> llm), got {final_state.iteration}"
+    )
+
+    # At least one tool_call step in intermediate_steps
+    tool_steps = [s for s in final_state.intermediate_steps if s.get("action") == "tool_call"]
+    assert len(tool_steps) >= 1, "Expected at least one tool_call in intermediate_steps"
+
+    # The tool that ran should be calculator_tool
+    tool_names = [s["detail"]["tool"] for s in tool_steps]
+    assert "calculator_tool" in tool_names, f"Expected calculator_tool, got: {tool_names}"
+
+    # A message with role "tool" should exist
+    tool_messages = [m for m in final_state.messages if m.get("role") == "tool"]
+    assert len(tool_messages) >= 1, "Expected at least one message with role='tool'"
+
+    print(f"✅ Tool invocation complete:")
+    print(f"   - Iterations: {final_state.iteration}")
+    print(f"   - Tool calls executed: {tool_names}")
+    print(f"   - Tool result: {tool_messages[0]['content']}")
+
+    print("\n" + "=" * 60)
     print("✅ ALL TESTS PASSED")
     print("=" * 60)
 

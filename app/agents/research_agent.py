@@ -1,9 +1,11 @@
 from langgraph.graph import StateGraph, END
+from langchain_core.utils.function_calling import convert_to_openai_function
 from typing import Union
 from app.core.agent_state import AgentState
 from app.core.provider import get_model_client
 from app.agents.tools import TOOLS, get_tool_by_name
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +20,11 @@ def node_llm_call(state: AgentState) -> AgentState:
 
     from schemas.llm_schemas import ModelRequest, Message
 
-    # Include tool definitions in system prompt
-    tools_schema = "\n".join([
-        f"- {tool.name}: {tool.description}"
-        for tool in TOOLS
-    ])
+    tools_as_openai = [convert_to_openai_function(tool) for tool in TOOLS]
 
     request = ModelRequest(
         model = "gpt-mock",
+        tools = tools_as_openai,
         messages = [
             Message(role=msg["role"], content = msg["content"])
             for msg in state.messages
@@ -39,7 +38,19 @@ def node_llm_call(state: AgentState) -> AgentState:
         "content": response.output_text
     })
 
-    state.tool_calls = response.tool_calls
+    normalized_tool_calls = None
+    if response.tool_calls:
+        normalized_tool_calls = []
+        for tc in response.tool_calls:
+            fn = tc.get("function", {})
+            raw_args = fn.get("arguments", "{}")
+            arguments = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+            normalized_tool_calls.append({
+                "tool_name": fn.get("name", ""),
+                "arguments": arguments
+            })
+    state.tool_calls = normalized_tool_calls
+
     state.iteration += 1
 
     state.intermediate_steps.append({
@@ -89,7 +100,7 @@ def node_tool_executor(state: AgentState) -> AgentState:
         
         # Add observation to messages
         state.messages.append({
-            "role": "user",  # Tool responses come as observations
+            "role": "tool",  # Tool responses come as observations
             "content": f"Tool {tool_name} returned: {tool_result}"
         })
 

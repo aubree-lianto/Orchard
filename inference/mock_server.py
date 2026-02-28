@@ -40,12 +40,66 @@ def health():
 class ChatRequest(BaseModel):
     model: str
     messages: list
+    termperature: float = 0.7
+    max_tokens: int = 2048
+    tools: list = []
 
 
 @app.post("/v1/chat/completions")
 def chat(req: ChatRequest):
     try:
         logger.debug(f"Received chat request: {req}")
+
+        last_user_content = ""
+        for msg in reversed(req.messages):
+            if isinstance(msg,dict) and msg.get("role") == "user":
+                last_user_content = msg.get("content", "").lower()
+                break
+
+        # Initialize tool calls as None 
+        tool_calls = None
+
+        # Added basic trigger keywords for current predefined tool calls 
+        if "calculate" in last_user_content:
+            # User asked about calculation → prepare calculator_tool call
+            tool_calls = [{
+                "id": "call_mock_001",  # Unique ID for this tool call
+                "type": "function",      # Type of tool call
+                "function": {
+                    "name": "calculator_tool",    # Which tool to execute
+                    "arguments": '{"expression": "2 + 2"}'  # Parameters as JSON string
+                }
+            }]
+            reply_content = "I will calculate that for you."
+            
+        elif "echo" in last_user_content:
+            # User asked to echo → prepare echo_tool call
+            tool_calls = [{
+                "id": "call_mock_002",
+                "type": "function",
+                "function": {
+                    "name": "echo_tool",
+                    "arguments": '{"message": "hello"}'
+                }
+            }]
+            reply_content = "Echoing your message."
+            
+        elif "search" in last_user_content:
+            # User asked to search → prepare search_tool call
+            tool_calls = [{
+                "id": "call_mock_003",
+                "type": "function",
+                "function": {
+                    "name": "search_tool",
+                    "arguments": '{"query": "mock query"}'
+                }
+            }]
+            reply_content = "Searching for information."
+            
+        else:
+            # No keyword match → just return plain text response
+            reply_content = "Mock response for dev"
+
         response = {
             "id": "mock",
             "object": "chat.completion",
@@ -53,7 +107,7 @@ def chat(req: ChatRequest):
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": "Mock response for dev"
+                    "content": reply_content
                 }
             }],
             "usage": {
@@ -62,6 +116,11 @@ def chat(req: ChatRequest):
                 "total_tokens": 15
             }
         }
+
+        # Add tool_calls to response IF they exist
+        if tool_calls:
+            response["tool_calls"] = tool_calls
+
         logger.debug(f"Returning response: {response}")
         return response
     except Exception as e:
