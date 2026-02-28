@@ -6,6 +6,7 @@ from app.core.provider import get_model_client
 from app.agents.tools import TOOLS, get_tool_by_name
 import logging
 import json
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 # Calls the LLM via ModelClient
 def node_llm_call(state: AgentState) -> AgentState:
-    
-    logger.info(f"[LLM Call] Iteration {state.iteration}, Messages: {len(state.messages)}")
+    request_id = state.metadata.get("request_id", "?")
+    logger.info(f"[Request:{request_id}] --> node: llm_call | iteration={state.iteration} | messages={len(state.messages)}")
+
+    t0 = time.time()
 
     client = get_model_client()
 
@@ -60,47 +63,57 @@ def node_llm_call(state: AgentState) -> AgentState:
             "has_tool_calls": bool(response.tool_calls)
         }
     })
+    
+    elapsed = time.time() - t0
 
-    logger.info(f"[LLM Call] Response: {response.output_text[:50]}...")
+    logger.info(
+        f"[Request:{request_id}] <-- node: llm_call | "
+        f"elapsed={elapsed:.3f}s | tokens={response.usage.get('total_tokens',0)} | "
+        f"tool_calls={len(normalized_tool_calls) if normalized_tool_calls else 0}"
+    )
     return state
 
 
-# Placeholder for future execution
 def node_tool_executor(state: AgentState) -> AgentState:
     """
     Node 2: Execute tool calls if any.
-    
+
     Input: AgentState with potential tool_calls
     Output: AgentState with tool results added to messages
     """
+    request_id = state.metadata.get("request_id", "?")
+
     if not state.tool_calls:
-        logger.info("No tool calls to execute")
+        logger.info(f"[Request:{request_id}] --> node: tool_executor | no tool calls, skipping")
         return state
-    
-    logger.info(f"[Tool Executor] Executing {len(state.tool_calls)} tool calls")
-    
+
+    logger.info(f"[Request:{request_id}] --> node: tool_executor | pending={len(state.tool_calls)}")
+
     for tool_call in state.tool_calls:
         tool_name = tool_call.get("tool_name")
         args = tool_call.get("arguments", {})
-        
+
         tool = get_tool_by_name(tool_name)
 
         if not tool:
-            logger.warning(f"[Tool Executor] Unknown tool: {tool_name}")
+            logger.warning(f"[Request:{request_id}] tool: {tool_name} | ERROR: unknown tool")
             tool_result = f"Error: Unknown tool '{tool_name}'"
-        else: 
+        else:
             try:
-                logger.info(f"[Tool Executor] Calling {tool_name} with {args}")
-                # Call the tool with unpacked arguments
+                t0 = time.time()
                 tool_result = tool.invoke(args)
-                logger.info(f"[Tool Executor] {tool_name} returned: {tool_result}")
+                elapsed = time.time() - t0
+                logger.info(
+                    f"[Request:{request_id}] tool: {tool_name} | "
+                    f"args={args} | result={str(tool_result)[:80]} | elapsed={elapsed:.3f}s"
+                )
             except Exception as e:
                 tool_result = f"Error executing {tool_name}: {str(e)}"
-                logger.error(tool_result)
-        
+                logger.error(f"[Request:{request_id}] tool: {tool_name} | ERROR: {e}")
+
         # Add observation to messages
         state.messages.append({
-            "role": "tool",  # Tool responses come as observations
+            "role": "tool",
             "content": f"Tool {tool_name} returned: {tool_result}"
         })
 
@@ -112,28 +125,30 @@ def node_tool_executor(state: AgentState) -> AgentState:
                 "result": tool_result
             }
         })
-    
+
+    logger.info(f"[Request:{request_id}] <-- node: tool_executor")
     return state
 
 def router_decision(state: AgentState) -> str:
     """
     Decide whether to continue loop or end.
-    
+
     Input: AgentState after LLM call
     Output: "continue" (execute tools) or "end" (return response)
     """
+    request_id = state.metadata.get("request_id", "?")
     has_tool_calls = bool(state.tool_calls)
     max_iterations = 5
-    
+
     if state.iteration >= max_iterations:
-        logger.info(f"Max iterations ({max_iterations}) reached")
+        logger.info(f"[Request:{request_id}] router: llm_call --> end | reason=max_iterations")
         return "end"
-    
+
     if has_tool_calls:
-        logger.info("Tool calls detected, continuing loop")
+        logger.info(f"[Request:{request_id}] router: llm_call --> tool_executor | tool_calls={len(state.tool_calls)}")
         return "continue"
-    
-    logger.info("No tool calls, ending loop")
+
+    logger.info(f"[Request:{request_id}] router: llm_call --> end | reason=no_tool_calls")
     return "end"
 
 def build_research_graph() -> StateGraph:
