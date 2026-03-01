@@ -8,7 +8,7 @@ import os
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, repo_root)
 
-from app.agents.tools import TOOLS, echo_tool, calculator_tool, search_tool
+from api.tools import TOOLS, echo_tool, calculator_tool, search_tool
 
 
 def test_tools():
