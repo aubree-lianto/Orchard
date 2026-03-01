@@ -10,26 +10,14 @@ Structure:
   - Agent imports tools but does not implement them
 """
 
-from api.tools.basic import echo_tool, calculator_tool, search_tool
+from api.tools.basic import search_tool, fetch_tool, retrieval_tool, TOOLS, get_tool_by_name
 
-# Export tools as a list for easy registration
-TOOLS = [echo_tool, calculator_tool, search_tool]
+# Re-export for convenient access
+__all__ = [
+    "search_tool",
+    "fetch_tool", 
+    "retrieval_tool",
+    "TOOLS",
+    "get_tool_by_name"
+]
 
-
-def get_tool_by_name(tool_name: str):
-    """
-    Helper function to retrieve a tool by name.
-    
-    Args:
-        tool_name: The name of the tool to retrieve
-        
-    Returns:
-        The tool object, or None if not found
-        
-    Example:
-        tool = get_tool_by_name("calculator_tool")
-        if tool:
-            result = tool.invoke({"expression": "2+2"})
-    """
-    tool_map = {tool.name: tool for tool in TOOLS}
-    return tool_map.get(tool_name)

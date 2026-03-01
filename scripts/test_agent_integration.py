@@ -17,8 +17,8 @@ from unittest.mock import patch
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, repo_root)
 
-from app.core.agent_state import AgentState
-from app.agents.research_agent import RESEARCH_GRAPH
+from api.core.agent_state import AgentState
+from api.agents.research_agent import RESEARCH_GRAPH
 from schemas.llm_schemas import ModelResponse
 
 
