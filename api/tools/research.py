@@ -6,14 +6,13 @@ Tools have names, descriptions, and structured input/output schemas.
 """
 
 from langchain.tools import tool
-from typing import List, Dict, Any
+from schemas.tools import SearchResult, SearchResults, FetchResult, RetrievalChunk, RetrievalChunks
 import logging
 
 logger = logging.getLogger(__name__)
 
-
 @tool
-def search_tool(query: str, source: str = "web", limit: int = 5) -> List[Dict[str, Any]]:
+def search_tool(query: str, source: str = "web", limit: int = 5) -> SearchResults:
     """
     Search for relevant sources (academic papers, web, knowledge base).
     
@@ -33,23 +32,23 @@ def search_tool(query: str, source: str = "web", limit: int = 5) -> List[Dict[st
     #   - Web: Tavily Search API or Google Search
     #   - Internal: Vector store query
     
-    results = [
-        {
-            "title": f"Research Paper: {query}",
-            "url": f"https://example.com/paper-{i}",
-            "snippet": f"This paper discusses {query} in detail...",
-            "source": source,
-            "relevance_score": 0.95 - (i * 0.05)
-        }
-        for i in range(min(limit, 3))
-    ]
+    results = []
+    for i in range(min(limit, 3)):
+        result = SearchResult(
+            title=f"Research Paper: {query}",
+            url=f"https://example.com/paper-{i}",
+            snippet=f"This paper discusses {query} in detail...",
+            source=source,
+            relevance_score=0.95 - (i * 0.05)
+        )
+        results.append(result.dict())
     
     logger.info(f"[Search] Found {len(results)} results")
     return results
 
 
 @tool
-def fetch_tool(url: str, max_length: int = 8000) -> Dict[str, Any]:
+def fetch_tool(url: str, max_length: int = 8000) -> FetchResult:
     """
     Fetch and parse document content from URL.
     
@@ -97,7 +96,7 @@ def fetch_tool(url: str, max_length: int = 8000) -> Dict[str, Any]:
 
 
 @tool
-def retrieval_tool(query: str, collection: str = "general", limit: int = 5) -> List[Dict[str, Any]]:
+def retrieval_tool(query: str, collection: str = "general", limit: int = 5) -> RetrievalChunks:
     """
     Retrieve relevant chunks from knowledge base / vector store.
     
@@ -116,16 +115,17 @@ def retrieval_tool(query: str, collection: str = "general", limit: int = 5) -> L
     # STUB: Mock chunks for now
     # TODO: Replace with vector store query
     
-    chunks = [
-        {
-            "id": f"chunk_{i}",
-            "content": f"Context about {query}: Knowledge base entry {i}",
-            "similarity": 0.95 - (i * 0.1),
-            "source": f"doc_{i}",
-            "metadata": {"collection": collection}
-        }
-        for i in range(min(limit, 3))
-    ]
+    chunks = []
+    
+    for i in range(min(limit, 3)):
+        chunk = RetrievalChunk(
+            id=f"chunk_{i}",
+            content=f"Context about {query}: Knowledge base entry {i}",
+            similarity=0.95 - (i * 0.1),
+            source=f"doc_{i}",
+            metadata={"collection": collection}
+        )
+        chunks.append(chunk.dict())
     
     logger.info(f"[Retrieval] Found {len(chunks)} chunks")
     return chunks

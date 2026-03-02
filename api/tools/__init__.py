@@ -10,7 +10,7 @@ Structure:
   - Agent imports tools but does not implement them
 """
 
-from api.tools.basic import search_tool, fetch_tool, retrieval_tool, TOOLS, get_tool_by_name
+from api.tools.research import search_tool, fetch_tool, retrieval_tool, TOOLS, get_tool_by_name
 
 # Re-export for convenient access
 __all__ = [
