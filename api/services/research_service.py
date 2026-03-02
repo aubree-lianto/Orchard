@@ -117,14 +117,8 @@ class ResearchService:
         #   - AgentState is agent contract (internal)
         #   - Service handles this conversion
         initial_state = AgentState(
-            messages=[
-                {
-                    "role": msg.role,
-                    "content": msg.content
-                }
-                for msg in request.messages
-            ],
-            metadata={"request_id": request_id}
+            messages=list(request.messages),
+            metadata={"request_id": request_id, "model": request.model}
         )
 
         # ====================================================================

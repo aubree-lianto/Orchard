@@ -3,7 +3,7 @@ from typing import List,Dict, Any, Optional
 from datetime import datetime
 
 class AgentState(BaseModel):
-    messages: List[Dict[str,str]] = Field(
+    messages: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="Chat messages in OpenAI format: [{role, content}, ...]"
     )

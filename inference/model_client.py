@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
-# For API keys later
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from typing import Optional
 
 import requests
+from openai import OpenAI
 
 from schemas.llm_schemas import ModelRequest, ModelResponse
 
@@ -75,6 +75,63 @@ class MockModelClient(ModelClient):
         return ModelResponse(model=request.model, output_text=content, tool_calls=tool_calls, usage=usage)
 
     
+class OpenAIModelClient(ModelClient):
+    """ModelClient backed by the OpenAI API."""
+
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini", timeout: int = 30):
+        self.client = OpenAI(api_key=api_key)
+        self.default_model = model
+        self.timeout = timeout
+
+    def chat(self, request: ModelRequest) -> ModelResponse:
+        model = request.model or self.default_model
+
+        tools = None
+        if request.tools:
+            tools = [
+                t if t.get("type") == "function" else {"type": "function", "function": t}
+                for t in request.tools
+            ]
+
+        # Pass messages as raw dicts to preserve tool_calls and tool_call_id fields
+        messages = [
+            m.model_dump(exclude_none=True) if hasattr(m, "model_dump") else m
+            for m in request.messages
+        ]
+
+        response = self.client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            tools=tools,
+        )
+
+        choice = response.choices[0]
+        content = choice.message.content or ""
+        tool_calls = None
+
+        if choice.message.tool_calls:
+            tool_calls = [
+                {
+                    "id": tc.id,
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments
+                    }
+                }
+                for tc in choice.message.tool_calls
+            ]
+
+        usage = {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens,
+            "total_tokens": response.usage.total_tokens
+        }
+
+        return ModelResponse(model=model, output_text=content, tool_calls=tool_calls, usage=usage)
+
+
 # Inherits modelClient class -> modelClient for the real vLLM
 class VLLMModelClient(ModelClient):
 

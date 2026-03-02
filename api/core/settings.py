@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     API_HOST: str = "127.0.0.1"
     API_PORT: int = 8000
 
+    # LLM API keys
+    OPENAI_API_KEY: str = ""
+
     # Tool API keys
     TAVILY_API_KEY: str = ""
     ARXIV_MAX_RESULTS: int = 5

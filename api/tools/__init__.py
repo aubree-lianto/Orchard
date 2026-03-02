@@ -12,11 +12,14 @@ Structure:
 
 from api.tools.research import search_tool, fetch_tool, retrieval_tool, TOOLS
 
-# Re-export for convenient access
+def get_tool_by_name(name: str):
+    return next((t for t in TOOLS if t.name == name), None)
+
 __all__ = [
     "search_tool",
-    "fetch_tool", 
+    "fetch_tool",
     "retrieval_tool",
-    "TOOLS"
+    "TOOLS",
+    "get_tool_by_name"
 ]
 

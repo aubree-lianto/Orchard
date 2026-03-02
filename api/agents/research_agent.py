@@ -33,7 +33,7 @@ def node_llm_call(state: AgentState) -> AgentState:
     # Get ModelClient instance 
     client = get_model_client()
 
-    from schemas.llm_schemas import ModelRequest, Message
+    from schemas.llm_schemas import ModelRequest
 
     # convert each tool into OpenAI function schema
     # all tools were decorated w LangChain tool decorator -> convert to necessary function schema
@@ -41,44 +41,54 @@ def node_llm_call(state: AgentState) -> AgentState:
 
     # Define model request for LLM
     request = ModelRequest(
-        model = "gpt-mock",
+        model = state.metadata.get("model", "gpt-4o-mini"),
         tools = tools_as_openai,
-        messages = [
-            Message(role=msg["role"], content = msg["content"])
-            for msg in state.messages
-        ]
+        messages = state.messages
     )
 
     # Fetch response
     response = client.chat(request)
 
-    # Append message to state
-    state.messages.append({
-        "role": "assistant",
-        "content": response.output_text
-    })
-
-    # Parse tool calls and normalize 
+    # Parse tool calls and normalize
     normalized_tool_calls = None
 
-    # If tool_calls were present
     if response.tool_calls:
         normalized_tool_calls = []
 
-        # process each tool call
         for tc in response.tool_calls:
             fn = tc.get("function", {})
-            # extract arguments from function call (aka responses)
             raw_args = fn.get("arguments", "{}")
-
             arguments = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+            tool_call_id = tc.get("id", f"call_{len(normalized_tool_calls)}")
 
-            # normalize tool calls
             normalized_tool_calls.append({
                 "tool_name": fn.get("name", ""),
-                "arguments": arguments
+                "arguments": arguments,
+                "tool_call_id": tool_call_id
             })
-        
+
+        # Store assistant message with tool_calls field (required by OpenAI)
+        state.messages.append({
+            "role": "assistant",
+            "content": response.output_text or "",
+            "tool_calls": [
+                {
+                    "id": tc["tool_call_id"],
+                    "type": "function",
+                    "function": {
+                        "name": tc["tool_name"],
+                        "arguments": json.dumps(tc["arguments"])
+                    }
+                }
+                for tc in normalized_tool_calls
+            ]
+        })
+    else:
+        state.messages.append({
+            "role": "assistant",
+            "content": response.output_text
+        })
+
     state.tool_calls = normalized_tool_calls
 
     # increment iteration counter -> helps to enforce max_iterations limit
@@ -155,10 +165,11 @@ def node_tool_executor(state: AgentState) -> AgentState:
                 tool_result = f"Error executing {tool_name}: {str(e)}"
                 logger.error(f"[Request:{request_id}] tool: {tool_name} | ERROR: {e}")
 
-        # Add observation to messages
+        # Add observation to messages (tool_call_id required by OpenAI)
         state.messages.append({
             "role": "tool",
-            "content": f"Tool {tool_name} returned: {tool_result}"
+            "tool_call_id": tool_call.get("tool_call_id", ""),
+            "content": str(tool_result)
         })
 
         state.intermediate_steps.append({

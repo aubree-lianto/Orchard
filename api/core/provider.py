@@ -1,5 +1,5 @@
-from app.core.settings import settings
-from inference.model_client import MockModelClient, VLLMModelClient
+from api.core.settings import settings
+from inference.model_client import MockModelClient, VLLMModelClient, OpenAIModelClient
 
 def get_model_client():
 
@@ -8,7 +8,11 @@ def get_model_client():
 
     if provider == "mock":
         return MockModelClient()
-    elif provider ==  "vllm":
+    elif provider == "openai":
+        if not settings.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY is not set in .env")
+        return OpenAIModelClient(api_key=settings.OPENAI_API_KEY)
+    elif provider == "vllm":
         return VLLMModelClient()
-    else: 
+    else:
         raise ValueError(f"Unknown MODEL_PROVIDER: {provider}")

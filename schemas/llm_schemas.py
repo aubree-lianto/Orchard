@@ -76,7 +76,7 @@ class ModelRequest(BaseModel):
     
     """
     model: str
-    messages: List[Message]
+    messages: List[Dict[str, Any]]
     temperature: float = 0.7
     max_tokens: int = 2048
     tools: Optional[List[dict]] = None
