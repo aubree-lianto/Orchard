@@ -1,4 +1,6 @@
 from pydantic_settings import BaseSettings
+
+
 class Settings(BaseSettings):
 
     # If variable missing from .env fall back to defaults
@@ -7,6 +9,10 @@ class Settings(BaseSettings):
 
     API_HOST: str = "127.0.0.1"
     API_PORT: int = 8000
+
+    # Tool API keys
+    TAVILY_API_KEY: str = ""
+    ARXIV_MAX_RESULTS: int = 5
 
     class Config:
         env_file = ".env"
