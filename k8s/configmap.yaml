@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchard-config
+  namespace: orchard
+  labels:
+    app.kubernetes.io/part-of: orchard
+data:
+  # Controls which LLM backend the gateway routes to: mock | openai | vllm
+  MODEL_PROVIDER: "vllm"
+
+  # Used by api/core/settings.py (Pydantic BaseSettings)
+  MODEL_BASE_URL: "http://vllm-svc:8000"
+
+  # Used directly by VLLMModelClient via os.getenv (inference/model_client.py:139)
+  VLLM_SERVER_URL: "http://vllm-svc:8000"
+
+  # Used directly by MockModelClient via os.getenv (inference/model_client.py:33)
+  MOCK_MODEL_SERVER_URL: "http://mock-server-svc:8000"
+
+  PYTHONPATH: "/app"
+  ARXIV_MAX_RESULTS: "5"
