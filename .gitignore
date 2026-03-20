@@ -7,3 +7,6 @@ __pycache__/
 *.log
 .DS_Store
 Thumbs.db
+
+# Kubernetes secrets with real values — apply imperatively, never commit
+k8s/secrets.local.yaml
