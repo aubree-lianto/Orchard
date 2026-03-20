@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-model-cache
+  namespace: orchard
+  labels:
+    app.kubernetes.io/part-of: orchard
+spec:
+  # k3s default StorageClass — binds to the node the pod first lands on.
+  # Since vLLM must run on the GPU node anyway this is fine for a single-node cluster.
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # Llama-3-8B-Instruct is ~16GB in float16; 50Gi gives room for future models.
+      storage: 50Gi

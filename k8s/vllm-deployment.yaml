@@ -1,0 +1,132 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: orchard
+  labels:
+    app: vllm
+    app.kubernetes.io/part-of: orchard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm
+  # Recreate required — GPU cannot be shared between two pods simultaneously.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      # Label your GPU node before deploying:
+      #   kubectl label node <node-name> accelerator=nvidia-gpu
+      nodeSelector:
+        accelerator: nvidia-gpu
+
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          imagePullPolicy: Always
+
+          args:
+            - "--model"
+            - "meta-llama/Meta-Llama-3-8B-Instruct"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8000"
+            - "--dtype"
+            - "auto"
+            - "--max-model-len"
+            - "8192"
+
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: orchard-secrets
+                  key: HF_TOKEN
+
+          resources:
+            requests:
+              memory: "16Gi"
+              cpu: "4"
+              nvidia.com/gpu: "1"
+            limits:
+              memory: "24Gi"
+              cpu: "8"
+              nvidia.com/gpu: "1"
+
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+            - name: dshm
+              mountPath: /dev/shm
+
+          # startupProbe gives vLLM time to download and load the model.
+          # First run can take 5-20 min; subsequent starts use the PVC cache.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 80
+            timeoutSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 10
+
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-model-cache
+        # Shared memory for PyTorch tensor ops (equivalent to shm_size: 1g in Docker)
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-svc
+  namespace: orchard
+  labels:
+    app: vllm
+    app.kubernetes.io/part-of: orchard
+spec:
+  selector:
+    app: vllm
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
